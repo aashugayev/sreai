@@ -1,0 +1,90 @@
+[
+  {
+    "_time": "2026-10-10T18:37:45.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "level": "INFO",
+    "event_type": "pool_stats",
+    "message": "HikariPool-1 stats total=20 active=14 idle=6 waiting=0"
+  },
+  {
+    "_time": "2026-10-10T18:39:12.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "level": "WARN",
+    "event_type": "pool_stats",
+    "message": "HikariPool-1 stats total=20 active=20 idle=0 waiting=11"
+  },
+  {
+    "_time": "2026-10-10T18:40:05.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "level": "WARN",
+    "event_type": "slow_query",
+    "message": "Database query exceeded 10000ms operation=authorize_payment duration_ms=14820"
+  },
+  {
+    "_time": "2026-10-10T18:41:18.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "level": "ERROR",
+    "event_type": "connection_timeout",
+    "message": "HikariPool-1 - Connection is not available, request timed out after 30000ms"
+  },
+  {
+    "_time": "2026-10-10T18:42:31.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "level": "ERROR",
+    "event_type": "connection_timeout",
+    "message": "HikariPool-1 - Connection is not available, request timed out after 30000ms"
+  },
+  {
+    "_time": "2026-10-10T18:43:10.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "level": "INFO",
+    "event_type": "pool_stats",
+    "message": "HikariPool-1 stats total=20 active=16 idle=4 waiting=0"
+  },
+  {
+    "_time": "2026-10-10T18:42:00.000-04:00",
+    "host": "inventory-api-prod-01",
+    "source": "inventory-api.log",
+    "sourcetype": "inventory:api:json",
+    "service": "inventory-api",
+    "environment": "production",
+    "level": "INFO",
+    "event_type": "health_check",
+    "message": "Database connection pool healthy active=3 idle=17 waiting=0"
+  },
+  {
+    "_time": "2026-10-10T18:42:20.000-04:00",
+    "host": "payments-api-stage-01",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "staging",
+    "level": "INFO",
+    "event_type": "health_check",
+    "message": "HikariPool-1 connection pool healthy active=2 idle=8 waiting=0"
+  }
+]

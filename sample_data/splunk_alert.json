@@ -1,0 +1,22 @@
+{
+  "sid": "scheduler__svc_sre__payments__RMD5f7061796d656e74735f64625f706f6f6c_at_1760140950_42",
+  "search_name": "Payments API - Database Connection Pool Exhaustion",
+  "app": "payments",
+  "owner": "svc_sre",
+  "results_link": "https://splunk.example.com/app/payments/search?sid=scheduler__svc_sre__payments__RMD5f7061796d656e74735f64625f706f6f6c_at_1760140950_42",
+  "result": {
+    "_time": "2026-10-10T18:42:31.000-04:00",
+    "host": "payments-api-prod-03",
+    "source": "payments-api.log",
+    "sourcetype": "payments:api:json",
+    "service": "payments-api",
+    "environment": "production",
+    "severity": "critical",
+    "error_type": "java.sql.SQLTransientConnectionException",
+    "message": "HikariPool-1 - Connection is not available, request timed out after 30000ms",
+    "count": "47",
+    "window_start": "2026-10-10T18:37:31.000-04:00",
+    "window_end": "2026-10-10T18:42:31.000-04:00",
+    "_raw": "2026-10-10 18:42:31.000 ERROR payments-api HikariPool-1 - Connection is not available, request timed out after 30000ms"
+  }
+}
