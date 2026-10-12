@@ -22,10 +22,10 @@ This will be built in small, understandable stages. The first goal is not a
 fully autonomous multi-agent system. It is a small Python program that can
 send a prompt to a locally running model and display the response.
 
-For interview preparation, see
+For an overview of established SRE/DevOps foundations and emerging agent
+patterns, see
 [`AGENTIC_SRE_DEVOPS_PRACTICES.md`](./AGENTIC_SRE_DEVOPS_PRACTICES.md) for
-established SRE/DevOps foundations, emerging agent patterns, source links, and
-an honest description of this proof of concept's scope.
+source links and the scope of this proof of concept.
 
 ### Current Implemented Flow
 

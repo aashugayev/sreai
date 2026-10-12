@@ -1,10 +1,13 @@
-# Agentic SRE and DevOps: Interview Notes
+# Agentic Systems in SRE and DevOps: Practices, Controls, and Open Questions
 
-*Prepared 12 October 2026 for interview discussion. This is a practical
-overview, not a claim that agentic operations have a single settled industry
-standard.*
+## Executive summary
 
-## The short version
+This paper surveys established SRE and DevOps practices that apply to
+AI-enabled operational workflows, then considers controls and evaluation
+patterns for systems that use language models and tools. It distinguishes
+well-established operational guidance from emerging agent-specific guidance.
+
+## Scope and maturity
 
 Established SRE and DevOps practices remain the foundation: use service
 objectives and actionable signals, respond to incidents with clear roles,
@@ -24,7 +27,7 @@ itself an SRE practice.
 
 | Practice | What it means operationally | How an agent can help |
 | --- | --- | --- |
-| **SLOs and useful alerts** | Define reliability in terms of user-visible service behavior. Alerts should be actionable, not merely unusual-looking data. | Summarize the SLO impact and relevant signals; do not let a fluent explanation substitute for the measurements. |
+| **SLIs, SLOs, and useful alerts** | Define service level indicators (SLIs) as measurements of user-visible service behavior, then set service level objectives (SLOs) as reliability targets for those indicators. Alerts should be actionable, not merely unusual-looking data. | Summarize the measured SLI and its SLO impact; do not let a fluent explanation substitute for the measurements. |
 | **Structured incident response** | Declare and coordinate incidents deliberately, make roles clear, keep a timeline, and communicate status. During an incident, mitigation and coordination matter alongside diagnosis. | Draft a timeline, summarize updates, and retrieve context for responders. It should not silently take over incident command. |
 | **Evidence-led troubleshooting** | Compare observations with a system model, form hypotheses, then look for confirming and disconfirming evidence. Restore service safely; root cause can remain uncertain during mitigation. | Search telemetry, code, and runbooks; distinguish observed facts from hypotheses; cite where each observation came from. |
 | **Safe delivery and operations** | Make changes small and controlled, automate repeatable checks, monitor outcomes, and have a way to recover. DevOps includes shared ownership and feedback, not just tool adoption. | Prepare a change proposal or checklist. Any production change needs the same authorization, testing, monitoring, and rollback discipline as a human-initiated change. |
@@ -140,7 +143,7 @@ SLIs, logs, traces, or incident record. OpenTelemetry's GenAI conventions are
 an evolving effort; check their status and data-sensitivity implications
 before adopting them as a stable contract.
 
-## Technology terms worth keeping distinct
+## Architectural concepts
 
 | Term | What it is | What it does not guarantee |
 | --- | --- | --- |
@@ -166,22 +169,17 @@ before adopting them as a stable contract.
 The workflow supports responders; it does not automate away incident
 coordination, service ownership, or engineering judgment.
 
-## An honest interview framing for this project
+## Example implementation boundary
 
-> “I’m learning how agentic workflows could support SRE work, and built a
-> local proof of concept around incident investigation. It uses synthetic
-> Splunk-style fixtures, local code and keyword-based knowledge search, a
-> bounded tool loop, validated structured output, and a report that cites
-> sources collected in that run. It is not connected to production, does not
-> use a real MCP transport, and cannot execute remediation. The design lesson
-> I’m exploring is how to make investigation more useful while keeping
-> evidence, permissions, and human approval explicit.”
-
-That describes what the prototype demonstrates without presenting it as
-production SRE experience. In a discussion, it is reasonable to say that the
-agent/tooling ecosystem is moving quickly, while incident command, least
-privilege, safe change management, observable systems, and learning from
-failures remain the dependable engineering foundation.
+The local proof of concept accompanying this paper demonstrates one bounded
+incident-investigation workflow using synthetic alert and event fixtures,
+local code search, keyword-based knowledge retrieval, a capped tool loop,
+validated structured output, and a terminal report with source identifiers.
+It does not connect to production systems, implement a real MCP transport,
+provide durable workflow orchestration, or execute remediation. These limits
+are deliberate: the example illustrates how established operational controls
+can shape an agent-assisted investigation without implying production
+readiness.
 
 ## References
 
