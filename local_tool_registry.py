@@ -11,6 +11,10 @@ class ToolInputError(ValueError):
     """Raised when a tool call contains invalid arguments."""
 
 
+class ToolExecutionError(RuntimeError):
+    """Raised when a registered tool cannot complete its requested operation."""
+
+
 ToolHandler = Callable[[dict[str, Any]], dict[str, Any]]
 
 
@@ -53,6 +57,8 @@ class LocalToolRegistry:
         try:
             structured_content = handler(arguments)
         except ToolInputError as error:
+            return error_result(str(error))
+        except ToolExecutionError as error:
             return error_result(str(error))
 
         return {

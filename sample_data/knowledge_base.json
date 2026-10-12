@@ -1,0 +1,23 @@
+[
+  {
+    "id": "runbook-payments-db-pool",
+    "type": "runbook",
+    "title": "Payments API database connection pool exhaustion",
+    "tags": ["payments", "database", "connection pool", "timeouts", "HikariPool"],
+    "content": "For connection acquisition timeouts, first compare active connections, idle connections, and waiting threads with the configured pool maximum. Check database connection limits and query latency over the same time window. Review recent deploys and database migrations for transactions that hold connections longer than expected. Do not raise the pool maximum until database capacity and per-instance limits have been checked. If the database is saturated, follow the database saturation runbook and escalate to the database on-call. Record observations and timestamps; do not restart production services as an investigative step."
+  },
+  {
+    "id": "incident-payments-pool-timeouts-2026-08",
+    "type": "prior_incident",
+    "title": "Payments API timeouts during a long-running migration",
+    "tags": ["payments", "database", "connection pool", "migration", "timeouts"],
+    "content": "Synthetic training record. A prior payments-api incident showed database connection acquisition timeouts during a schema migration. The incident review found migration transactions holding connections longer than expected; pool waiters increased while available database connections fell. The mitigation was to pause the migration and let transactions drain, then the team changed the migration procedure. This is a comparison case, not evidence that the current incident has the same cause. Verify current metrics and deployment history before drawing a conclusion."
+  },
+  {
+    "id": "runbook-payments-api-latency",
+    "type": "runbook",
+    "title": "Payments API elevated request latency",
+    "tags": ["payments", "latency", "requests", "service"],
+    "content": "Compare request latency by endpoint and instance. Check dependency latency and error rates before changing application settings. Correlate timestamps with deploys and upstream incidents, and preserve representative request IDs for follow-up."
+  }
+]

@@ -64,12 +64,24 @@ def parse_args():
     parser.add_argument(
         '--analyze',
         action='store_true',
-        help='request validated structured analysis from Ollama',
+        help='request tool-assisted, validated structured analysis from Ollama',
+    )
+    parser.add_argument(
+        '--max-tool-calls',
+        type=int,
+        default=5,
+        help='maximum local tool calls during analysis (default: 5)',
+    )
+    parser.add_argument(
+        '--agent-timeout-seconds',
+        type=float,
+        default=300,
+        help='total seconds allowed for analysis (default: 300)',
     )
     return parser.parse_args()
 
 
-def run_client(signal, analyze):
+def run_client(signal, analyze, max_tool_calls=5, agent_timeout_seconds=300):
     """Start the client and pipe it one normalized incident signal."""
     message = json.dumps(asdict(signal), indent=2)
     mode = '--analyze-incident' if analyze else '--display-only'
@@ -80,6 +92,10 @@ def run_client(signal, analyze):
             '--config',
             str(CONFIG),
             mode,
+            '--max-tool-calls',
+            str(max_tool_calls),
+            '--agent-timeout-seconds',
+            str(agent_timeout_seconds),
         ],
         input=message,
         text=True,
@@ -151,7 +167,12 @@ def main():
 
         mode_name = 'structured-analysis' if args.analyze else 'display-only'
         print('3. Starting ollama_client.py in ' + mode_name + ' mode', flush=True)
-        run_client(signal, args.analyze)
+        run_client(
+            signal,
+            args.analyze,
+            max_tool_calls=args.max_tool_calls,
+            agent_timeout_seconds=args.agent_timeout_seconds,
+        )
     finally:
         server.shutdown()
         server.server_close()

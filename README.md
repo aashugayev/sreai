@@ -22,6 +22,73 @@ This will be built in small, understandable stages. The first goal is not a
 fully autonomous multi-agent system. It is a small Python program that can
 send a prompt to a locally running model and display the response.
 
+For interview preparation, see
+[`AGENTIC_SRE_DEVOPS_PRACTICES.md`](./AGENTIC_SRE_DEVOPS_PRACTICES.md) for
+established SRE/DevOps foundations, emerging agent patterns, source links, and
+an honest description of this proof of concept's scope.
+
+### Current Implemented Flow
+
+The diagram below shows the working paths today. Incident analysis discovers
+and calls the simulated Splunk MCP tool, local code-investigation tools, and
+local knowledge-base search. These tools are read-only; no real Splunk
+connection or GitHub MCP server is used.
+
+```text
+Incident handoff (orchestrate_local_incident.py)
+
+  Mock alert sender
+       | HTTP POST
+       v
+  /webhooks/splunk
+       | validate envelope and normalize
+       +-------------------------------> HTTP 202 to sender
+       |
+       v
+  In-memory incident queue
+       |
+       v
+  Orchestrator starts ollama_client.py and pipes normalized signal to stdin
+       |
+       +-- --display-only --> print normalized signal (no model call)
+       |
+       +-- --analyze-incident
+              |
+              v
+          Validate incident -> grounded prompt + Splunk MCP, code, and knowledge tool definitions
+              |
+              v
+          Ollama /api/chat (tool-call phase)
+              |
+              +-- splunk_search --> simulated MCP server -> sample-event fixture
+              |
+              +-- code/Git tool --> local_code_tools.py
+                                      -> sample_code search / local Git history,
+                                         diff, or blame (read-only)
+              |
+              +-- knowledge_search --> local_knowledge_tools.py
+                                         -> local runbooks and prior incidents
+                                            (keyword-ranked, read-only)
+              (bounded tool calls and total timeout)
+              |
+              +-- ready to finish
+                     |
+                     v
+                 Ollama /api/chat (JSON Schema format, tools disabled)
+                     |
+                     v
+                 validate citations and analysis -> print cited report
+
+Standalone paths
+
+  Prompt argument or stdin -> ollama_client.py -> Ollama /api/chat -> print reply
+
+  local_tool_registry.py list -> discover registered tool definitions
+  local_tool_registry.py call -> registry -> splunk_search_tool.py
+                                         -> sample_data/splunk_events.json
+                                         -> MCP-shaped result or explicit error
+```
+
 ### What an Agent Is
 
 For this project, an agent is an application loop around a language model:
@@ -299,16 +366,35 @@ Run the same webhook flow and request analysis:
 python orchestrate_local_incident.py --analyze
 ```
 
+In this mode the client exposes the registered read-only `splunk_search` tool
+to Ollama. The model may request a search, Python executes it against the
+local fixture, and the result is returned to the model before it produces its
+final analysis. Calls are limited to five by default, and the whole analysis
+has a 300-second timeout. Override either limit with
+`--max-tool-calls` or `--agent-timeout-seconds`, for example:
+
+```powershell
+python orchestrate_local_incident.py --analyze `
+  --max-tool-calls 3 `
+  --agent-timeout-seconds 180
+```
+
 In analysis mode, `ollama_client.py`:
 
 1. Validates the normalized incident input.
-2. Builds a grounded prompt containing the incident and JSON Schema.
-3. Calls Ollama with that schema in the API's `format` field and temperature
-   set to `0`.
-4. Parses the returned JSON.
-5. Rejects missing or unexpected fields, invalid types, confidence outside
-   `0..1`, hypotheses without evidence, and incident identity changes.
-6. Prints only the validated analysis.
+2. Discovers tools from the in-process simulated Splunk MCP server and adapts
+   their MCP-shaped definitions to Ollama's function-tool format.
+3. Sends each requested tool call through the simulated MCP client/server
+   boundary and returns its MCP-shaped result to Ollama.
+4. Enforces the configured tool-call and total-time limits.
+5. After tool use is complete, requests a separate final response with the
+   JSON Schema in Ollama's `format` field and tools disabled.
+6. Parses the final JSON and rejects missing or unexpected fields, invalid
+   types, confidence outside `0..1`, citations to sources not collected,
+   hypotheses without evidence, and incident identity changes.
+7. Displays a Markdown report with confidence, source-cited observations,
+   unanswered questions, and suggested remediation for human review. The
+   agent does not execute remediation actions.
 
 The validated shape is:
 
@@ -319,11 +405,34 @@ The validated shape is:
   "environment": "production",
   "severity": "critical",
   "summary": "What the evidence currently shows",
+  "summary_evidence": [
+    {
+      "source_id": "INCIDENT",
+      "observation": "A fact from the incident signal"
+    }
+  ],
   "hypotheses": [
     {
       "description": "A possible explanation, not a verified root cause",
       "confidence": 0.8,
-      "evidence": ["An observation present in the incident signal"]
+      "evidence": [
+        {
+          "source_id": "TOOL-1",
+          "observation": "A finding from a successful tool result"
+        }
+      ]
+    }
+  ],
+  "recommended_actions": [
+    {
+      "action": "A proposed next step",
+      "rationale": "Why the evidence may support this step",
+      "evidence": [
+        {
+          "source_id": "INCIDENT",
+          "observation": "A fact from the incident signal"
+        }
+      ]
     }
   ],
   "recommended_queries": ["A read-only search for missing evidence"],
@@ -332,7 +441,14 @@ The validated shape is:
 ```
 
 The prompt explicitly separates observed evidence from hypotheses. Suggested
-queries are plans only: no Splunk query has been executed at this stage.
+queries remain plans unless the tool was actually called. Tool results come
+from the local sample fixture through an in-process simulated MCP server; no
+Splunk server, MCP transport, or real Splunk MCP implementation is contacted.
+Every citation must refer to `INCIDENT` or a successful tool result such as
+`TOOL-1`; citations are checked against the sources collected during that run.
+This checks the cited source ID, not whether the generated paraphrase is
+accurate; the terminal report shows source labels and bounded result previews
+for human verification. Proposed remediation is never executed.
 
 The receiver intentionally does not run Ollama before replying. A production
 webhook should acknowledge quickly, persist or queue the validated signal, and
@@ -371,8 +487,22 @@ timestamps, and a bounded `limit` are supported. Results are newest first.
 The tool deliberately does **not** accept SPL. This keeps the exercise
 read-only and prevents a model from supplying arbitrary commands. It also
 makes failures visible as tool errors instead of empty, success-shaped
-results. At this stage calls are made manually; the explicit agent loop in
-stage 6 will give the definition to Ollama and execute requests it returns.
+results. Calls can be made manually as shown above or requested by Ollama
+during incident analysis; Python validates and executes them through the same
+registry.
+
+#### Stage 7: Simulated Splunk MCP
+
+Incident analysis now discovers and calls `splunk_search` through
+[`simulated_splunk_mcp.py`](./simulated_splunk_mcp.py). It exchanges
+JSON-RPC-shaped `tools/list` and `tools/call` messages with an in-process
+simulator, which returns deterministic results from the existing sample-event
+fixture. This exercises the MCP request/response boundary while preserving
+explicit tool errors and requiring no Splunk account, credentials, network
+access, or MCP server process. It is a simulator, not a real Splunk MCP server
+or a claim of compatibility with a particular vendor implementation. Connecting
+to real Splunk is intentionally deferred. The Stage 5 local registry CLI remains
+available for manual fixture searches.
 
 Splunk's other similarly named interfaces serve different directions:
 
@@ -384,9 +514,62 @@ Splunk's other similarly named interfaces serve different directions:
 - A **custom alert action** can run custom code and is useful when a standard
   webhook cannot meet authentication or payload requirements.
 
+#### Local code-investigation tools
+
+[`local_code_tools.py`](./local_code_tools.py) exposes four bounded, read-only
+tools to incident analysis:
+
+- `search_code` finds a literal, case-insensitive query and returns file,
+  line, and snippet evidence.
+- `git_history` lists recent commit subjects, authors, and timestamps.
+- `git_diff` shows a bounded diff for one file between safe Git revisions.
+- `git_blame` returns bounded line-level author and commit evidence. Author
+  attribution is context for routing an investigation, never evidence of fault.
+
+The tools only inspect the local `sample_code` subtree. Git history, diff, and
+blame describe committed content; newly added or modified files may not have
+history until committed. Git failures and invalid paths are returned as
+explicit tool errors. No commands modify the repository, fetch remotes, or
+contact GitHub.
+
+The sample service under [`sample_code/`](./sample_code) is intentionally
+small: it has a payment path and a connection-pool exhaustion condition related
+to the incident fixture. This gives code search an inspectable target without
+coupling it to the SRE agent's own implementation.
+
+#### Local knowledge-base lookup
+
+[`local_knowledge_tools.py`](./local_knowledge_tools.py) exposes a bounded,
+read-only `knowledge_search` tool for runbooks and prior incident records in
+[`sample_data/knowledge_base.json`](./sample_data/knowledge_base.json). It
+ranks documents by keyword overlap, prioritizing matches in titles and tags,
+and returns source IDs, matched terms, and bounded excerpts. This first
+retrieval stage uses local keyword search; it does not use embeddings, a
+vector database, or external services. The included records are synthetic
+training examples, and a similar past incident is not proof of the current
+incident's cause.
+
+In `--analyze` mode, the model can call `knowledge_search` alongside the
+Splunk and code-investigation tools when relevant. Results are returned to the
+model as evidence, subject to the same tool-call and analysis-time limits.
+
+### Final incident report
+
+At the end of `--analyze`, the client validates the model's structured
+analysis and renders a Markdown report in the terminal. It includes the
+incident summary, evidence-cited hypotheses with confidence, unanswered
+questions, suggested queries, and evidence-linked remediation proposals.
+Source IDs are checked against the incident and successful tool results
+actually collected during that run. Remediation is clearly labeled for human
+review; the agent does not carry it out. No report file is written.
+
 ### Build Plan: Digestible Chunks
 
 Each stage should run and be understandable before the next one begins:
+
+Keep the **Current Implemented Flow** diagram above in sync whenever a stage
+adds or changes an implemented path. Show planned work as planned rather than
+implying that it is already wired up.
 
 1. **Local model check** *(done)* - install Ollama, run one model, and send it
    a prompt from the terminal.
@@ -399,16 +582,19 @@ Each stage should run and be understandable before the next one begins:
    prose.
 5. **One local tool** *(done)* - expose a safe, MCP-shaped fake Splunk-search
    function backed by sample events, with manual discovery and execution.
-6. **Explicit agent loop** - execute a requested tool, return its result to
-   the model, and enforce iteration and timeout limits.
-7. **Real Splunk integration** - authenticate safely, run constrained SPL,
-   handle search jobs, and redact or limit returned data.
-8. **Codebase investigation** - add repository search, commit history, diff,
-   and ownership evidence.
-9. **Knowledge-base lookup** - retrieve runbooks and previous incident
-   records.
-10. **Final report** - combine claims with cited evidence, confidence,
-   unanswered questions, and a human-reviewed remediation plan.
+6. **Explicit agent loop** *(done)* - execute requested local tools, return
+   their results to the model, and enforce tool-call and total-time limits.
+7. **Splunk MCP simulation** *(done)* - exercise MCP-shaped tool discovery,
+   calls, deterministic fixture responses, empty results, and explicit errors
+   through an in-process simulated server. This does not connect to Splunk.
+8. **Codebase investigation** *(done)* - search sample code and inspect local
+   commit history, bounded diffs, and line-level authorship without remote
+   access.
+9. **Knowledge-base lookup** *(done)* - retrieve local runbooks and prior
+   incident records through bounded, keyword-ranked search.
+10. **Final report** *(done)* - display claims with validated source
+   citations, confidence, unanswered questions, and remediation proposals
+   that require human review.
 11. **MCP and orchestration evaluation** - adopt MCP and possibly LangGraph
     only where they simplify proven requirements.
 
